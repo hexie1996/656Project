@@ -17,7 +17,7 @@ for i in letters:
             text = d['text'].replace('\\', '\\\\')
             text = text.replace('"','\\"')
             mycursor.execute(
-                    "insert into post (postID,userID,content,url,imageUrl,post_time) values (\"" + d['review_id'] + "\",\"" + d['user_id'] + "\",\""+text+"\",\"None\",\"None\",\""+d['date']+"\");")
+                    "insert into postTopicTable values (\"" + d['business_id'] + "\",\"" + d['review_id'] + "\");")
             count+=1
             if count % 100000 == 0:
                 cnx.commit()

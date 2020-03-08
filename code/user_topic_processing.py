@@ -17,9 +17,13 @@ for i in letters:
             text = d['text'].replace('\\', '\\\\')
             text = text.replace('"','\\"')
             mycursor.execute(
-                    "insert into post (postID,userID,content,url,imageUrl,post_time) values (\"" + d['review_id'] + "\",\"" + d['user_id'] + "\",\""+text+"\",\"None\",\"None\",\""+d['date']+"\");")
-            count+=1
-            if count % 100000 == 0:
-                cnx.commit()
-                print(str(count) + " completed")
+                "select * from userTopicTable where topicID=\"" + d['business_id'] + "\" and userID=\"" + d['user_id'] + "\";")
+            result=mycursor.fetchall()
+            if result == []:
+                mycursor.execute(
+                        "insert into userTopicTable values (\"" + d['business_id'] + "\",\"" + d['user_id'] + "\");")
+                count+=1
+                if count % 100000 == 0:
+                    cnx.commit()
+                    print(str(count) + " completed")
 cnx.commit()
