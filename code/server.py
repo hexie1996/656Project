@@ -170,11 +170,70 @@ def create_group():
     group_id=random_string()
     mycursor.execute("select * from peopleGroup where groupID=\"" + group_id + "\"")
     t = mycursor.fetchall()
-    if t!=[]:
+    if t==[]:
         mycursor.execute("insert into peopleGroup values(\""+group_id+"\",\""+data['groupName']+"\",0);")
     else:
         group_id = random_string()
         mycursor.execute("insert into peopleGroup values(\"" + group_id + "\",\"" + data['groupName'] + "\",0);")
+    mycursor.commit()
+    return "Completed!"
+
+@app.route('/follow_group',methods=['POST']) #
+def follow_group():
+    data = request.get_json()
+    mycursor.execute("select * from peopleGroup where groupID=\"" + data['groupID'] + "\"")
+    t = mycursor.fetchall()
+    if t!=[]:
+        try:
+            mycursor.execute("insert into userGroupTable values(\"" + data['groupID'] + "\",\"" + data['userID'] + "\")")
+            mycursor.execute("update peopleGroup set peopleNum=peopleNum+1 where groupID=\"" + data['groupID'] + "\";")
+        except:
+            return "Error: you have followed this group already."
+    else:
+        return "Error: group id does not exist."
+    mycursor.commit()
+    return "Completed!"
+
+@app.route('/create_user',methods=['POST'])
+def create_user():
+    data = request.get_json()
+    user_id = random_string()
+    mycursor.execute("select * from user where userID=\"" + user_id + "\"")
+    t = mycursor.fetchall()
+    if t == []:
+        mycursor.execute("insert into user values(\"" + user_id + "\",\"" + data['nickname'] + "\",\"" + data['gender'] + "\",\"" + data['birthday'] + "\",\"" + data['bio'] + "\",\"" + data['religion'] + "\");")
+    else:
+        user_id = random_string()
+        mycursor.execute(
+            "insert into user values(\"" + user_id + "\",\"" + data['nickname'] + "\",\"" + data['gender'] + "\",\"" +
+            data['birthday'] + "\",\"" + data['bio'] + "\",\"" + data['religion'] + "\");")
+    mycursor.commit()
+    return "Completed!"
+
+@app.route('/like',methods=['POST'])
+def like():
+    data = request.get_json()
+    mycursor.execute("select * from statusTable where userID=\"" + data['userID'] + "\" and postID=\"" + data['postID'] + "\";")
+    t = mycursor.fetchall()
+    if t == []:
+        mycursor.execute("insert into statusTable values (\""+data['userID']+"\",\""+data['postID']+"\","+data['likeType']+",\""+str(datetime.datetime.now())+"\",true,\""+str(datetime.datetime.now())+"\")")
+    else:
+        mycursor.execute("update statusTable set likeType="+data['likeType']+", likeTime=\""+str(datetime.datetime.now())+"\" where userID=\""+data['userID']+"\" and postID=\""+data['postID']+"\";")
+    mycursor.commit()
+
+@app.route('/create_topic',methods=['POST'])
+def create_topic():
+    data = request.get_json()
+    topic_id = random_string()
+    mycursor.execute("select * from topic where topicID=\"" + topic_id + "\"")
+    t = mycursor.fetchall()
+    if t == []:
+        mycursor.execute(
+            "insert into topic values(\""+topic_id+"\",\""+data['topicName']+"\",'None')")
+    else:
+        topic_id = random_string()
+        mycursor.execute(
+            "insert into topic values(\"" + topic_id + "\",\"" + data['topicName'] + "\",'None')")
     mycursor.commit()
     return "Completed!"
 
