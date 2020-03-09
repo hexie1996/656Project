@@ -1,7 +1,9 @@
 import flask
 from flask import request, jsonify
+import string
 import datetime
 import mysql.connector
+import random
 cnx = mysql.connector.connect(user='root', password='12345678',
                               host='127.0.0.1',auth_plugin='mysql_native_password')
 mycursor = cnx.cursor()
@@ -11,11 +13,11 @@ app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 
 
-@app.route('/', methods=['GET'])
+@app.route('/', methods=['GET']) #home
 def home():
     return "<h1>ECE656 project</h1><p>20848700</p>"
 
-@app.route('/user', methods=['GET'])
+@app.route('/user', methods=['GET']) #get the user's information
 def user_detailed_information():
     if 'user_id' in request.args:
         id = str(request.args['user_id'])
@@ -26,7 +28,7 @@ def user_detailed_information():
     results=get_results(mycursor)
     return jsonify(results)
 
-@app.route('/friends_post', methods=['GET'])
+@app.route('/friends_post', methods=['GET']) #get the unseen posts from all the friends of the user
 def friends_post():
     if 'user_id' in request.args:
         id = str(request.args['user_id'])
@@ -44,7 +46,7 @@ def friends_post():
     mark_seen(id,results,mycursor)
     return jsonify(results)
 
-@app.route('/topic_post', methods=['GET'])
+@app.route('/topic_post', methods=['GET']) #get all the unseen topic's post
 def topic_post():
     if 'user_id' in request.args:
         id = str(request.args['user_id'])
@@ -60,7 +62,7 @@ def topic_post():
     results = get_results(mycursor)
     mark_seen(id, results, mycursor)
     return jsonify(results)
-@app.route('/group_post', methods=['GET'])
+@app.route('/group_post', methods=['GET']) #get the the post of groups that the user follows
 def group_post():
     if 'user_id' in request.args:
         id = str(request.args['user_id'])
@@ -77,7 +79,7 @@ def group_post():
     mark_seen(id, results, mycursor)
     return jsonify(results)
 
-@app.route('/all_topic', methods=['GET'])
+@app.route('/all_topic', methods=['GET']) #get all the posts in this topic
 def all_topic():
     if 'topic_id' in request.args:
         id = str(request.args['topic_id'])
@@ -90,7 +92,7 @@ def all_topic():
     results = get_results(mycursor)
     return jsonify(results)
 
-@app.route('/all_person',methods=['GET'])
+@app.route('/all_person',methods=['GET']) #get all the posts of an user
 def all_person():
     if 'user_id' in request.args:
         id = str(request.args['user_id'])
@@ -100,7 +102,7 @@ def all_person():
     results = get_results(mycursor)
     return jsonify(results)
 
-@app.route('/friend_list',methods=['GET'])
+@app.route('/friend_list',methods=['GET']) #get the friend list of an user
 def friend_list():
     if 'user_id' in request.args:
         id = str(request.args['user_id'])
@@ -110,12 +112,73 @@ def friend_list():
     results = get_results(mycursor)
     return jsonify(results)
 
-@app.route('/all_group',methods=['GET'])
+@app.route('/all_group',methods=['GET']) #get all the group's information
 def all_group():
     mycursor.execute("select * from peopleGroup;")
     results = get_results(mycursor)
     return jsonify(results)
+#post methods
 
+@app.route('/send_post',methods=['POST']) #send one post
+def send_post():
+    data = request.get_json()
+    this_post_id=random_string()
+    mycursor.execute("insert into post values(\""+this_post_id+"\",\""+data['userID']+"\",\""+data['content']+",'None','None',\""+str(datetime.datetime.now())+"\");")
+    if(data['topicID']!='None'):
+        mycursor.execute("select * from topic where topicID=\""+data['topicID']+"\"")
+        t=mycursor.fetchall()
+        if t!=[]:
+            mycursor.execute("insert into postTopicTable values(\""+data['topicID']+"\",\""+this_post_id+"\");")
+        else:
+            return "Error: topic id does not exist."
+    mycursor.commit()
+    return "Completed!"
+
+@app.route('/follow_person',methods=['POST']) #follow a person
+def follow_person():
+    data = request.get_json()
+    mycursor.execute("select * from user where userID=\"" + data['userID'] + "\"")
+    t = mycursor.fetchall()
+    if t!=[]:
+        try:
+            mycursor.execute("insert into friendsTable values(\""+data['followerID']+"\",\""+data['followingID']+"\",\""+str(datetime.datetime.now())+"\");")
+        except:
+            return "Error: you have followed this person already."
+    else:
+        return "Error: user id does not exist"
+    mycursor.commit()
+    return "Completed!"
+
+@app.route('/follow_topic',methods=['POST']) #follow a topic
+def follow_topic():
+    data = request.get_json()
+    mycursor.execute("select * from topic where topicID=\"" + data['topicID'] + "\"")
+    t = mycursor.fetchall()
+    if t!=[]:
+        try:
+            mycursor.execute("insert into userTopicTable values(\""+data['topicID']+"\",\""+data['userID']+"\");")
+        except:
+            return "Error: you have followed this topic already"
+    else:
+        return "Error: topic id does not exist."
+    mycursor.commit()
+    return "Completed!"
+
+@app.route('/create_group',methods=['POST']) #create a group
+def create_group():
+    data = request.get_json()
+    group_id=random_string()
+    mycursor.execute("select * from peopleGroup where groupID=\"" + group_id + "\"")
+    t = mycursor.fetchall()
+    if t!=[]:
+        mycursor.execute("insert into peopleGroup values(\""+group_id+"\",\""+data['groupName']+"\",0);")
+    else:
+        group_id = random_string()
+        mycursor.execute("insert into peopleGroup values(\"" + group_id + "\",\"" + data['groupName'] + "\",0);")
+    mycursor.commit()
+    return "Completed!"
+
+###########################################
 def mark_seen(id,results,mycursor):
     for r in results:
         mycursor.execute("select * from statusTable where userID=\""+id+"\" and postID=\""+r['postID']+"\";")
@@ -124,12 +187,15 @@ def mark_seen(id,results,mycursor):
             mycursor.execute("insert into statusTable values (\""+id+"\",\""+r['postID']+"\",NULL,NULL,true,\""+str(datetime.datetime.now())+"\")")
         else:
             mycursor.execute("update statusTable set seen=true, seenTime=\""+str(datetime.datetime.now())+"\" where userID=\""+id+"\" and postID=\""+r['postID']+"\";")
+    mycursor.commit()
 
 def get_results(db_cursor):
     desc = [d[0] for d in db_cursor.description]
     results = [dotdict(dict(zip(desc, res))) for res in db_cursor.fetchall()]
     return results
-
+def random_string():
+    letters = string.ascii_letters
+    return ''.join(random.choice(letters) for i in range(40))
 class dotdict(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
