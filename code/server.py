@@ -43,7 +43,7 @@ def friends_post():
                      "\'"+id+"\' and seen=true)) as A "
                      "inner join user on A.userID=user.userID;")
     results=get_results(mycursor)
-    mark_seen(id,results,mycursor)
+    mark_seen(id,results)
     return jsonify(results)
 
 @app.route('/topic_post', methods=['GET']) #get all the unseen topic's post
@@ -60,7 +60,7 @@ def topic_post():
                      "(select postID from statusTable where userID="
                      "\'"+id+"\' and seen=true)")
     results = get_results(mycursor)
-    mark_seen(id, results, mycursor)
+    mark_seen(id, results)
     return jsonify(results)
 @app.route('/group_post', methods=['GET']) #get the the post of groups that the user follows
 def group_post():
@@ -76,7 +76,7 @@ def group_post():
                                     "(select postID from statusTable where userID="
                                     "\'" + id + "\' and seen=true)")
     results = get_results(mycursor)
-    mark_seen(id, results, mycursor)
+    mark_seen(id, results)
     return jsonify(results)
 
 @app.route('/all_topic', methods=['GET']) #get all the posts in this topic
@@ -123,7 +123,7 @@ def all_group():
 def send_post():
     data = request.get_json()
     this_post_id=random_string()
-    mycursor.execute("insert into post values(\""+this_post_id+"\",\""+data['userID']+"\",\""+data['content']+",'None','None',\""+str(datetime.datetime.now())+"\");")
+    mycursor.execute("insert into post values(\""+this_post_id+"\",\""+data['userID']+"\",\""+data['content']+"\",\"None\",\"None\",\""+str(datetime.datetime.now())+"\");")
     if(data['topicID']!='None'):
         mycursor.execute("select * from topic where topicID=\""+data['topicID']+"\"")
         t=mycursor.fetchall()
@@ -131,13 +131,13 @@ def send_post():
             mycursor.execute("insert into postTopicTable values(\""+data['topicID']+"\",\""+this_post_id+"\");")
         else:
             return "Error: topic id does not exist."
-    mycursor.commit()
+    cnx.commit()
     return "Completed!"
 
 @app.route('/follow_person',methods=['POST']) #follow a person
 def follow_person():
     data = request.get_json()
-    mycursor.execute("select * from user where userID=\"" + data['userID'] + "\"")
+    mycursor.execute("select * from user where userID=\"" + data['followingID'] + "\"")
     t = mycursor.fetchall()
     if t!=[]:
         try:
@@ -146,7 +146,7 @@ def follow_person():
             return "Error: you have followed this person already."
     else:
         return "Error: user id does not exist"
-    mycursor.commit()
+    cnx.commit()
     return "Completed!"
 
 @app.route('/follow_topic',methods=['POST']) #follow a topic
@@ -161,7 +161,7 @@ def follow_topic():
             return "Error: you have followed this topic already"
     else:
         return "Error: topic id does not exist."
-    mycursor.commit()
+    cnx.commit()
     return "Completed!"
 
 @app.route('/create_group',methods=['POST']) #create a group
@@ -175,7 +175,7 @@ def create_group():
     else:
         group_id = random_string()
         mycursor.execute("insert into peopleGroup values(\"" + group_id + "\",\"" + data['groupName'] + "\",0);")
-    mycursor.commit()
+    cnx.commit()
     return "Completed!"
 
 @app.route('/follow_group',methods=['POST']) #
@@ -191,7 +191,7 @@ def follow_group():
             return "Error: you have followed this group already."
     else:
         return "Error: group id does not exist."
-    mycursor.commit()
+    cnx.commit()
     return "Completed!"
 
 @app.route('/create_user',methods=['POST'])
@@ -207,7 +207,7 @@ def create_user():
         mycursor.execute(
             "insert into user values(\"" + user_id + "\",\"" + data['nickname'] + "\",\"" + data['gender'] + "\",\"" +
             data['birthday'] + "\",\"" + data['bio'] + "\",\"" + data['religion'] + "\");")
-    mycursor.commit()
+    cnx.commit()
     return "Completed!"
 
 @app.route('/like',methods=['POST'])
@@ -219,7 +219,8 @@ def like():
         mycursor.execute("insert into statusTable values (\""+data['userID']+"\",\""+data['postID']+"\","+data['likeType']+",\""+str(datetime.datetime.now())+"\",true,\""+str(datetime.datetime.now())+"\")")
     else:
         mycursor.execute("update statusTable set likeType="+data['likeType']+", likeTime=\""+str(datetime.datetime.now())+"\" where userID=\""+data['userID']+"\" and postID=\""+data['postID']+"\";")
-    mycursor.commit()
+    cnx.commit()
+    return "Completed!"
 
 @app.route('/create_topic',methods=['POST'])
 def create_topic():
@@ -234,11 +235,11 @@ def create_topic():
         topic_id = random_string()
         mycursor.execute(
             "insert into topic values(\"" + topic_id + "\",\"" + data['topicName'] + "\",'None')")
-    mycursor.commit()
+    cnx.commit()
     return "Completed!"
 
 ###########################################
-def mark_seen(id,results,mycursor):
+def mark_seen(id,results):
     for r in results:
         mycursor.execute("select * from statusTable where userID=\""+id+"\" and postID=\""+r['postID']+"\";")
         t=mycursor.fetchall()
@@ -246,7 +247,7 @@ def mark_seen(id,results,mycursor):
             mycursor.execute("insert into statusTable values (\""+id+"\",\""+r['postID']+"\",NULL,NULL,true,\""+str(datetime.datetime.now())+"\")")
         else:
             mycursor.execute("update statusTable set seen=true, seenTime=\""+str(datetime.datetime.now())+"\" where userID=\""+id+"\" and postID=\""+r['postID']+"\";")
-    mycursor.commit()
+    cnx.commit()
 
 def get_results(db_cursor):
     desc = [d[0] for d in db_cursor.description]
